@@ -1,0 +1,98 @@
+server:
+  port: 8080
+  error:
+    include-message: never #never
+    include-binding-errors: never #never
+    include-stacktrace: never
+    whitelabel:
+      enabled: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+client:
+  feign:
+    authentication-service:
+      url: http://localhost:8081
+      validate: /validate
+
+
+spring:
+  webflux:
+    base-path: /
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cloud:
+    gateway:
+
+
+      httpclient:
+        connect-timeout: 5000
+        response-timeout: 7s
+      routes:
+      #  - id: user-service
+      #    uri: http://user-service:8085
+      #    predicates:
+      #      - Path=/users/**
+        - id: mcp-service
+          uri: http://localhost:8090
+          predicates:
+            - Path=/mcpserver/**
+          filters:
+            - StripPrefix= 1
+
+        - id: notification-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/notification/**
+          filters:
+            - StripPrefix= 1
+            - PreserveHostHeader
+
+        - id: account-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/account/**
+          filters:
+            - StripPrefix= 1
+
+        - id: transaction-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/transaction/**
+          filters:
+            - StripPrefix= 1
+
+        - id: authentication-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/authentication/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5       # saniyede 5 istek
+                redis-rate-limiter.burstCapacity: 10      # maksimum 10 istek anlık
+                key-resolver: "#{@userHeaderKeyResolver}"       # kullanıcıya göre sınır
+            #- name: CircuitBreaker
+            #  args:
+            #    name: authServiceCircuitBreaker
+            #    fallbackUri: forward:/fallback/authentication
+            #    statusCodes: 500,502,503,504
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials Access-Control-Allow-Headers Access-Control-Allow-Methods
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:3000"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+
+  application:
+    name: api-gateway
+  main:
+    banner-mode: off
