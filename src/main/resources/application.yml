@@ -15,16 +15,15 @@ management:
 client:
   feign:
     authentication-service:
-      url: http://localhost:8081
+      url: ${AUTHENTICATION_SERVICE_URL:http://localhost:8081}
       validate: /validate
-
 
 spring:
   webflux:
     base-path: /
   data:
     redis:
-      host: localhost
+      host: ${REDIS_HOST:localhost}
       port: 6379
   cloud:
     gateway:
@@ -34,19 +33,19 @@ spring:
         connect-timeout: 5000
         response-timeout: 7s
       routes:
-      #  - id: user-service
-      #    uri: http://user-service:8085
-      #    predicates:
-      #      - Path=/users/**
+        #  - id: user-service
+        #    uri: http://user-service:8085
+        #    predicates:
+        #      - Path=/users/**
         - id: mcp-service
-          uri: http://localhost:8090
+          uri: ${MCP_SERVICE_URL:http://localhost:8090}
           predicates:
             - Path=/mcpserver/**
           filters:
             - StripPrefix= 1
 
         - id: notification-service
-          uri: http://localhost:8082
+          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/notification/**
           filters:
@@ -54,21 +53,35 @@ spring:
             - PreserveHostHeader
 
         - id: account-service
-          uri: http://localhost:8084
+          uri: ${ACCOUNT_SERVICE_URL:http://localhost:8084}
           predicates:
             - Path=/account/**
           filters:
             - StripPrefix= 1
 
+        - id: atm-reporting-service
+          uri: ${ATM_REPORTING_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/atm/**
+          filters:
+            - StripPrefix= 1
+
+        - id: invoice-service
+          uri: ${INVOICE_SERVICE_URL:http://localhost:8050}
+          predicates:
+            - Path=/invoice/**
+          filters:
+            - StripPrefix= 1
+
         - id: transaction-service
-          uri: http://localhost:8083
+          uri: ${TRANSACTION_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/transaction/**
           filters:
             - StripPrefix= 1
 
         - id: authentication-service
-          uri: http://localhost:8081
+          uri: ${AUTHENTICATION_SERVICE_URL:http://localhost:8081}
           predicates:
             - Path=/authentication/**
           filters:
@@ -87,7 +100,7 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "http://localhost:3000"
+            allowedOrigins: "${FRONTEND_URL:http://localhost:3000}"
             allowedMethods: "*"
             allowedHeaders: "*"
             allowCredentials: true
@@ -96,3 +109,10 @@ spring:
     name: api-gateway
   main:
     banner-mode: off
+
+logging:
+  file:
+    name: logs/api-gateway.log
+  level:
+    com.modernbank.api_gateway: INFO
+    org.springframework.cloud.gateway: INFO
