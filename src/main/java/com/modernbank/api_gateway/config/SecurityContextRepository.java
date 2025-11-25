@@ -27,6 +27,7 @@ public class SecurityContextRepository implements ServerSecurityContextRepositor
     public Mono<SecurityContext> load(ServerWebExchange exchange) {
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
+        //Burasini kaldirabilirmisim bir onemi yokmus.
         if (exchange.getRequest().getPath().toString().startsWith("/authentication") ||
                 exchange.getRequest().getPath().toString().startsWith("/api/v1/verification/user") ||
                 exchange.getRequest().getPath().toString().startsWith("/account/api/v1/verification/user")||

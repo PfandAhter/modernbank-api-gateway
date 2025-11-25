@@ -5,7 +5,8 @@ import com.modernbank.api_gateway.api.response.UserInfoResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
-import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -32,6 +33,12 @@ public class JwtAuthenticationManager implements ReactiveAuthenticationManager {
                 .uri("http://localhost:8081/authentication/validate?token=" + token)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, response ->
+                        Mono.error(new BadCredentialsException("Invalid or expired token"))
+                )
+                .onStatus(HttpStatusCode::is5xxServerError, response ->
+                        Mono.error(new AuthenticationServiceException("Authentication service unreachable"))
+                )
                 .onStatus(HttpStatusCode::isError, response -> Mono.empty()) // hata gelirse auth başarısız
                 .bodyToMono(UserInfoResponse.class)
                 .map(userInfo -> {
