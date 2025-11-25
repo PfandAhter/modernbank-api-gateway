@@ -3,6 +3,7 @@ package com.modernbank.api_gateway.config;
 import com.modernbank.api_gateway.api.response.UserInfoResponse;
 import com.modernbank.api_gateway.exception.RemoteServiceException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -27,6 +28,9 @@ import reactor.core.publisher.Mono;
 public class AuthenticationFilter implements GlobalFilter, Ordered {
 
     private final WebClient.Builder webClientBuilder;
+
+    @Value("${client.feign.authentication-service.url}")
+    private String authServiceUrl;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -87,10 +91,11 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
 
         String token = authHeader.substring(7);
 
+        String validateUrl = authServiceUrl + "/authentication/validate?token=" + token;
         // AuthenticationService’e doğrulama isteği gönder
         return webClientBuilder.build()
                 .get()
-                .uri("http://localhost:8081/authentication/validate?token=" + token)
+                .uri(validateUrl)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
                 .onStatus(HttpStatusCode::is4xxClientError, resp ->
@@ -154,9 +159,10 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     private Mono<UserInfoResponse> validateToken(String token) {
+        String validateUrl = authServiceUrl + "/authentication/validate?token=" + token;
         return webClientBuilder.build()
                 .get()
-                .uri("http://localhost:8081/authentication/validate?token=" + token)
+                .uri(validateUrl)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
                 .bodyToMono(UserInfoResponse.class);

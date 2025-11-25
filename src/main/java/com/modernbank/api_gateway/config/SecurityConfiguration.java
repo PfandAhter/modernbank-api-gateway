@@ -3,14 +3,21 @@ package com.modernbank.api_gateway.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
+import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 
 @Configuration
@@ -40,6 +47,55 @@ public class SecurityConfiguration {
                         .pathMatchers("/notification/chat-websocket/**").permitAll()
                         .pathMatchers("/authentication/**").permitAll()
                         .anyExchange().authenticated()
+                )
+                .exceptionHandling(exceptionHandling -> exceptionHandling
+                        // 1. Authentication Entry Point (Giriş yapılmamış veya Token geçersiz)
+                        .authenticationEntryPoint((exchange, ex) -> {
+                            ServerHttpResponse response = exchange.getResponse();
+                            response.setStatusCode(HttpStatus.UNAUTHORIZED);
+                            response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+
+                            // JSON Formatında Anlamlı Mesaj Oluşturma
+                            String body = String.format("""
+                                {
+                                    "timestamp": "%s",
+                                    "status": 401,
+                                    "error": "Unauthorized",
+                                    "message": "Erişim reddedildi: Geçersiz veya eksik token.",
+                                    "path": "%s"
+                                }
+                                """,
+                                    LocalDateTime.now(),
+                                    exchange.getRequest().getPath().value()
+                            );
+
+                            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+                            DataBuffer buffer = response.bufferFactory().wrap(bytes);
+                            return response.writeWith(Mono.just(buffer));
+                        })
+                        // 2. Access Denied Handler (Giriş yapılmış ama yetki yetmiyor - Role mismatch)
+                        .accessDeniedHandler((exchange, denied) -> {
+                            ServerHttpResponse response = exchange.getResponse();
+                            response.setStatusCode(HttpStatus.FORBIDDEN);
+                            response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+
+                            String body = String.format("""
+                                {
+                                    "timestamp": "%s",
+                                    "status": 403,
+                                    "error": "Forbidden",
+                                    "message": "Bu işlem için yetkiniz bulunmamaktadır.",
+                                    "path": "%s"
+                                }
+                                """,
+                                    LocalDateTime.now(),
+                                    exchange.getRequest().getPath().value()
+                            );
+
+                            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+                            DataBuffer buffer = response.bufferFactory().wrap(bytes);
+                            return response.writeWith(Mono.just(buffer));
+                        })
                 )
                 .build();
     }
