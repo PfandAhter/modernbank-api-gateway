@@ -15,7 +15,7 @@ management:
 client:
   feign:
     authentication-service:
-      url: ${AUTHENTICATION_SERVICE_URL:http://localhost:8081}
+      url: ${AUTHENTICATION_SERVICE_URL}
       validate: /validate
 
 spring:
@@ -23,7 +23,7 @@ spring:
     base-path: /
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
+      host: ${REDIS_HOST}
       port: 6379
   cloud:
     gateway:
@@ -38,14 +38,14 @@ spring:
         #    predicates:
         #      - Path=/users/**
         - id: mcp-service
-          uri: ${MCP_SERVICE_URL:http://localhost:8090}
+          uri: ${MCP_SERVICE_URL}
           predicates:
             - Path=/mcpserver/**
           filters:
             - StripPrefix= 1
 
         - id: notification-service
-          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8082}
+          uri: ${NOTIFICATION_SERVICE_URL}
           predicates:
             - Path=/notification/**
           filters:
@@ -53,35 +53,35 @@ spring:
             - PreserveHostHeader
 
         - id: account-service
-          uri: ${ACCOUNT_SERVICE_URL:http://localhost:8084}
+          uri: ${ACCOUNT_SERVICE_URL}
           predicates:
             - Path=/account/**
           filters:
             - StripPrefix= 1
 
         - id: atm-reporting-service
-          uri: ${ATM_REPORTING_SERVICE_URL:http://localhost:8085}
+          uri: ${ATM_REPORTING_SERVICE_URL}
           predicates:
             - Path=/atm/**
           filters:
             - StripPrefix= 1
 
         - id: invoice-service
-          uri: ${INVOICE_SERVICE_URL:http://localhost:8050}
+          uri: ${INVOICE_SERVICE_URL}
           predicates:
             - Path=/invoice/**
           filters:
             - StripPrefix= 1
 
         - id: transaction-service
-          uri: ${TRANSACTION_SERVICE_URL:http://localhost:8083}
+          uri: ${TRANSACTION_SERVICE_URL}
           predicates:
             - Path=/transaction/**
           filters:
             - StripPrefix= 1
 
         - id: authentication-service
-          uri: ${AUTHENTICATION_SERVICE_URL:http://localhost:8081}
+          uri: ${AUTHENTICATION_SERVICE_URL}
           predicates:
             - Path=/authentication/**
           filters:
