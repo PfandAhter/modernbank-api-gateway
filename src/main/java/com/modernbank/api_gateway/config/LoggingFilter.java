@@ -1,5 +1,6 @@
 package com.modernbank.api_gateway.config;
 
+import com.modernbank.api_gateway.constants.HeaderKey;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -13,6 +14,8 @@ import reactor.core.publisher.Mono;
 import java.net.InetSocketAddress;
 import java.util.Optional;
 
+import static com.modernbank.api_gateway.constants.HeaderKey.USER_ID;
+
 @Component
 @Slf4j
 public class LoggingFilter implements GlobalFilter, Ordered {
@@ -22,6 +25,7 @@ public class LoggingFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
         String method = request.getMethod().name();
+        String correlationId = request.getHeaders().getFirst(HeaderKey.CORRELATION_ID);
 
         // Get IP Address
         String ipAddress = Optional.ofNullable(request.getRemoteAddress())
@@ -30,7 +34,12 @@ public class LoggingFilter implements GlobalFilter, Ordered {
                 .orElse("Unknown IP");
 
         // Log Request
-        log.info("Incoming Request -> IP: {}, Method: {}, Path: {}", ipAddress, method, path);
+
+        if(correlationId != null) {
+            log.info("Incoming request with Correlation ID: {} -> IP: {}, Method: {}, Path: {}", correlationId, ipAddress, method, path);
+        }else{
+            log.info("Incoming Request -> IP: {}, Method: {}, Path: {}", ipAddress, method, path);
+        }
 
         return chain.filter(exchange).then(Mono.fromRunnable(() -> {
             ServerHttpResponse response = exchange.getResponse();
@@ -38,7 +47,7 @@ public class LoggingFilter implements GlobalFilter, Ordered {
 
             // Try to get User ID from headers (set by AuthenticationFilter if
             // authenticated)
-            String userId = request.getHeaders().getFirst("X-User-Id");
+            String userId = request.getHeaders().getFirst(USER_ID);
             String userLog = (userId != null) ? "User ID: " + userId : "User: Anonymous";
 
             // Log Response
