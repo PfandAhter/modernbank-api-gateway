@@ -1,17 +1,17 @@
 package com.modernbank.api_gateway.config;
 
 import com.modernbank.api_gateway.api.response.UserInfoResponse;
+import com.modernbank.api_gateway.constants.HeaderKey;
 import com.modernbank.api_gateway.exception.RemoteServiceException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.http.*;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
@@ -21,6 +21,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
+
+import static com.modernbank.api_gateway.constants.HeaderKey.*;
 
 
 @Component
@@ -83,6 +88,13 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         }
 
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        String correlationId = exchange.getRequest().getHeaders().getFirst(CORRELATION_ID) != null ?
+                exchange.getRequest().getHeaders().getFirst(CORRELATION_ID) :
+                UUID.randomUUID().toString();
+
+        if(correlationId == null || correlationId.isEmpty()) {
+            correlationId = java.util.UUID.randomUUID().toString();
+        }
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
@@ -93,6 +105,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
 
         String validateUrl = authServiceUrl + "/authentication/validate?token=" + token;
         // AuthenticationService’e doğrulama isteği gönder
+        String finalCorrelationId = correlationId;
         return webClientBuilder.build()
                 .get()
                 .uri(validateUrl)
@@ -118,11 +131,22 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
                 )
                 .bodyToMono(UserInfoResponse.class)
                 .flatMap(userInfo -> {
+                    String pathAdminAccess = exchange.getRequest().getURI().getPath();
+
+                    if (requiresAdminAccess(pathAdminAccess)) {
+                        boolean isAdmin = userInfo.getAuthorities().stream()
+                                .anyMatch(auth -> auth.equalsIgnoreCase("ROLE_ADMIN") || auth.equalsIgnoreCase("ADMIN"));
+
+                        if (!isAdmin) {
+                            return handleUnauthorizedAdminAccess(exchange);
+                        }
+                    }
                     // Header’a kullanıcı bilgilerini ekle
                     ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
-                            .header("X-User-Id", userInfo.getId())
-                            .header("X-User-Email", userInfo.getEmail())
-                            .header("X-User-Role", String.join(",", userInfo.getAuthorities()))
+                            .header(USER_ID, userInfo.getId())
+                            .header(USER_EMAIL, userInfo.getEmail())
+                            .header(USER_ROLE, String.join(",", userInfo.getAuthorities()))
+                            .header(CORRELATION_ID, finalCorrelationId)
                             .build();
 
                     UsernamePasswordAuthenticationToken authentication =
@@ -156,6 +180,28 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
                             "Kimlik doğrulama işlemi sırasında hata oluştu: " + e.getMessage()
                     ));
                 });
+    }
+
+    private boolean requiresAdminAccess(String path) {
+        return path.contains("/cache") || path.contains("/admin");
+    }
+
+    private Mono<Void> handleUnauthorizedAdminAccess(ServerWebExchange exchange) {
+        ServerHttpResponse response = exchange.getResponse();
+        response.setStatusCode(HttpStatus.NOT_FOUND);
+        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+
+        String body = """
+        {
+            "description": "Talep edilen kaynak sistemde bulunamadı veya bu işlem için gerekli izinler sağlanamadı.",
+            "error": "Erişim Kısıtlaması",
+            "status": 404
+        }
+        """;
+
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        DataBuffer buffer = response.bufferFactory().wrap(bytes);
+        return response.writeWith(Mono.just(buffer));
     }
 
     private Mono<UserInfoResponse> validateToken(String token) {
