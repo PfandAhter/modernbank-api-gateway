@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.modernbank.api_gateway.api.response.BaseResponse;
 import com.modernbank.api_gateway.api.response.TestResponse;
 import com.modernbank.api_gateway.exception.RemoteServiceException;
+import io.netty.handler.timeout.ReadTimeoutException;
+import io.netty.handler.timeout.WriteTimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.jce.provider.AnnotatedException;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -22,8 +24,10 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 
 @Slf4j
@@ -51,7 +55,15 @@ public class GatewayErrorFilter implements GlobalFilter, Ordered {
 
         try {
             // 🔹 Yetkilendirme hatası (ör. Token geçersiz)
-            if (throwable instanceof RemoteServiceException rse) {
+
+            if (isTimeoutException(throwable)) {
+                status = HttpStatus.GATEWAY_TIMEOUT;
+                processCode = "ERR-TIMEOUT";
+                processMessage = "İstek zaman aşımına uğradı. Sunucu yanıt vermedi, lütfen daha sonra tekrar deneyiniz.";
+                log.warn("Gateway Timeout [path={}]: {}", exchange.getRequest().getPath(), throwable.getMessage());
+            }
+
+            else if (throwable instanceof RemoteServiceException rse) {
                 status = rse.getStatus() != null ? rse.getStatus() : HttpStatus.UNAUTHORIZED;
                 processCode = rse.getErrorCode() != null ? rse.getErrorCode() : "AUTH-001";
                 processMessage = rse.getMessage() != null ? rse.getMessage() : "Yetkilendirme hatası.";
@@ -101,6 +113,15 @@ public class GatewayErrorFilter implements GlobalFilter, Ordered {
         }
 
         return response.writeWith(Mono.just(response.bufferFactory().wrap(bytes)));
+    }
+
+    private boolean isTimeoutException(Throwable throwable) {
+        return throwable instanceof TimeoutException
+                || throwable instanceof SocketTimeoutException
+                || throwable instanceof ReadTimeoutException
+                || throwable instanceof WriteTimeoutException
+                || (throwable.getCause() != null && isTimeoutException(throwable.getCause()))
+                || (throwable.getMessage() != null && throwable.getMessage().toLowerCase().contains("timeout"));
     }
 
     private String mapStatusToProcessCode(HttpStatus status) {
