@@ -3,6 +3,7 @@ package com.modernbank.api_gateway.config;
 import com.modernbank.api_gateway.api.client.AuthenticationServiceClient;
 import com.modernbank.api_gateway.api.response.UserInfoResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.security.authentication.AuthenticationServiceException;
@@ -24,13 +25,16 @@ public class JwtAuthenticationManager implements ReactiveAuthenticationManager {
 
     private final WebClient.Builder webClientBuilder;
 
+    @Value("${client.feign.authentication-service.url}")
+    private String authServiceUrl;
+
     @Override
     public Mono<Authentication> authenticate(Authentication authentication) {
         String token = authentication.getCredentials().toString();
 
         return webClientBuilder.build()
                 .get()
-                .uri("http://localhost:8081/authentication/validate?token=" + token)
+                .uri(authServiceUrl+"/authentication/validate?token=" + token)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
                 .onStatus(HttpStatusCode::is4xxClientError, response ->
