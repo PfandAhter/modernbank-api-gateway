@@ -10,7 +10,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus,circuitbreakers,circuitbreakerevents
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
 client:
   feign:
@@ -70,12 +73,6 @@ spring:
           uri: ${INVOICE_SERVICE_URL}
           predicates:
             - Path=/invoice/**
-          filters:
-            - StripPrefix= 1
-        - id: grafana-route
-          uri: http://monitoring-grafana.default.svc.cluster.local:80
-          predicates:
-            - Path=/monitor/**
           filters:
             - StripPrefix= 1
 
