@@ -42,6 +42,7 @@ public class SecurityConfiguration {
                         .pathMatchers("/account/api/v1/verification/user/**").permitAll()
                         .pathMatchers("/api/v1/verification/user/**").permitAll()
                         .pathMatchers("/notification/notification-websocket/**").permitAll()
+                        .pathMatchers("/actuator/**").permitAll()
                         .pathMatchers("/notification-websocket/**").permitAll()
                         .pathMatchers("/chat-websocket/**").permitAll()
                         .pathMatchers("/notification/chat-websocket/**").permitAll()
