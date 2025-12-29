@@ -72,6 +72,12 @@ spring:
             - Path=/invoice/**
           filters:
             - StripPrefix= 1
+        - id: grafana-route
+          uri: http://monitoring-grafana.default.svc.cluster.local:80
+          predicates:
+            - Path=/monitor/**
+          filters:
+            - StripPrefix= 1
 
         - id: transaction-service
           uri: ${TRANSACTION_SERVICE_URL}
