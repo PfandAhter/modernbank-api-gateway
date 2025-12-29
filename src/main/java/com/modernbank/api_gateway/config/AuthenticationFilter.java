@@ -183,7 +183,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     private boolean requiresAdminAccess(String path) {
-        return path.contains("/cache") || path.contains("/admin");
+        return path.contains("/cache") || path.contains("/admin") || path.contains("/monitor");
     }
 
     private Mono<Void> handleUnauthorizedAdminAccess(ServerWebExchange exchange) {
