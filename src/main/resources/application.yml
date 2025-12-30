@@ -68,6 +68,12 @@ spring:
             - Path=/atm/**
           filters:
             - StripPrefix= 1
+        - id: analysis-service
+          uri: ${ANALYSIS_SERVICE_URL}
+          predicates:
+            - Path=/analysis/**
+          filters:
+            - StripPrefix= 1
 
         - id: invoice-service
           uri: ${INVOICE_SERVICE_URL}
