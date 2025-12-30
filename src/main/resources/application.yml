@@ -109,7 +109,10 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "${FRONTEND_URL:http://localhost:3000}"
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "https://www.bakirbank.online"
+              - "https://bakirbank.online"
             allowedMethods: "*"
             allowedHeaders: "*"
             allowCredentials: true
