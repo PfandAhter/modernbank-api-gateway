@@ -33,8 +33,8 @@ spring:
 
 
       httpclient:
-        connect-timeout: 5000
-        response-timeout: 7s
+        connect-timeout: 10000
+        response-timeout: 60s
       routes:
         #  - id: user-service
         #    uri: http://user-service:8085
